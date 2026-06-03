@@ -72,7 +72,7 @@ For an **existing project** that already follows this discipline:
 
 ## Applicability to smaller applications
 
-The playbook **does not apply to small applications, single-file scripts, or one-shot fixes.** Pretending otherwise produces ceremony without value.
+The playbook **does not apply to small applications, single-file scripts, or one-shot fixes.**
 
 Specifically:
 
