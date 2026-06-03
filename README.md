@@ -16,7 +16,7 @@ The playbook prevents collapse by giving the codebase a structure that survives 
 
 - **A script that grades the project's readiness based on evidence files, not on the agent's word.** For high-stakes work, a small script (run locally or in CI) reads the evidence the project has produced — closeout reports, test outputs, parity comparisons, rehearsal logs — and outputs a structured list of everything still blocking the project from shipping. If anything is missing, faked, or stale, the script refuses to return green. The agent cannot talk past it.
 
-It has been used to maintain a 170k LOC application across years of agent-driven feature work and a full language migration of the entire codebase. Both phases — steady-state maintenance and a large parallel rewrite — drove the patterns documented here. The standard tier covers the first; the enforcement-grade tier covers the second.
+It has been used to maintain a 170k LOC application, feature work and a full language migration of the entire codebase. Both phases — steady-state maintenance and a large parallel rewrite — drove the patterns documented here. The standard tier covers the first; the enforcement-grade tier covers the second.
 
 The playbook is vendor-neutral. It works with Claude Code, Codex, Cursor, Aider, or any custom harness.
 
