@@ -32,7 +32,7 @@ See `AGENT_INSTRUCTIONS_STARTER_PACK.md` for the agent configuration layer. See 
 
 ## The project document set
 
-Eight documents form the skeleton. Names and exact structure can vary; the *roles* are non-negotiable.
+Nine documents form the skeleton. Names and exact structure can vary; the *roles* are non-negotiable.
 
 | Document | Role | Loaded by |
 |---|---|---|
@@ -42,6 +42,7 @@ Eight documents form the skeleton. Names and exact structure can vary; the *role
 | `03_METHOD_OF_PROCEDURE.md` | The standard procedure every slice follows. | Agents executing any slice |
 | `04_CONTRACT_AND_TEST_MATRIX.md` | What "preserve behavior" means, surface by surface, with test anchors. | Agents touching a contract surface |
 | `05_CHANGE_SYNC_AND_POLICY.md` | What stays stable, what's frozen, what requires approval. AI guardrails. | Agents making changes that touch the base system |
+| `06_INVENTORY_AND_EQUIVALENCE_GATES.md` | For each surface the old system exposes (routes, operations, jobs, entities, providers), the inventory file, the equivalence tool, the readiness blocker codes, and the retirement amendment process. **Completeness gates live here.** | Agents at first orientation; readiness tool reads the named inventories and equivalence outputs |
 | `phases/PHASE_N_*.md` | Per-phase executable brief. Includes numerical floors and agent executor brief. | Agents executing that phase |
 | `development-guide/PRINCIPLES.md` | How to think about the work for *this* project specifically. | Agents at first orientation |
 
@@ -98,6 +99,38 @@ Two rules:
 The single highest-leverage artifact in the playbook. Without it, agents drift no matter how good the documents are.
 
 The full contract is in `READINESS_TOOL_SPEC.md`. Build it **early** — before the first phase ships. It's the only thing standing between you and an agent that closes its own gates.
+
+## The three gate categories — including completeness
+
+Every high-stakes project needs three categories of gate, not two. Most playbooks ship the first two and assume the third. The third must be explicit and machine-checkable, or the project will pass its own gates while silently shipping incomplete.
+
+| Category | What it proves | Failure mode if missing |
+|---|---|---|
+| **Correctness gates** | The new system does the right thing on the surfaces it implements | Bugs in implemented behavior |
+| **Behavior gates** | The new and old systems agree where they overlap | Silent contract drift |
+| **Completeness gates** | The new system covers every surface the old system exposes | **Completeness drift** — surfaces silently absent in the new system |
+
+Completeness drift is the failure mode where the new system implements every surface anyone explicitly named in a slice, and silently omits every surface no slice happened to enumerate. The phase reports all close. The contract matrix all passes. The readiness tool says green. Production breaks the first time a user tries a route the old system had and the new system doesn't.
+
+For every surface the old system exposes — routes, operations, message handlers, scheduled jobs, providers, schemas — the project must capture:
+
+1. **An inventory of the old system's surfaces** (e.g. `route_inventory.json`).
+2. **An inventory of the new system's equivalents** (e.g. the new system's actual mounted routes, registered handlers, declared jobs).
+3. **An equivalence tool** that diffs the two and refuses to clear unless they agree, modulo explicit retirements with amendments.
+
+The third item is the gate. **Inventories without equivalence gates are decoration.** A captured inventory that nothing diffs against the new system is data nobody is checking. The readiness tool must consume each equivalence tool's output and refuse green if any inventory hasn't been diffed against the target this gate cycle.
+
+When an old-system surface should not be ported, the project must produce a **retirement amendment** naming the surface, the consumer impact, the product owner, and the replacement (if any). The equivalence tool accepts amendments as explicit retirements; it never accepts silent omissions.
+
+The pattern this prevents:
+- Phase 0 captures `route_inventory.json` to "document the API surface."
+- Phase 2 implements "the read-only routes" without enumerating which ones.
+- Phase 4 implements "the simple write routes" without enumerating which ones.
+- Phase 8 ships with 30% of write routes never implemented.
+- Cutover smoke exercises happy paths; UI tests run against mocks; nobody notices.
+- Production traffic hits a missing route on day one.
+
+The fix is structural: inventory-equivalence gates wired into the readiness tool from Phase 0, so missing-surface blockers surface in the first readiness run and stay surfaced until either implementation or retirement amendment closes them.
 
 ## The evidence-over-assertion rule
 
@@ -173,15 +206,16 @@ Settings, hooks, and tool allowlists complement the constitution:
 
 ## What this playbook prevents
 
-The five failure modes that kill most agent-driven rewrites:
+The six failure modes that kill most agent-driven rewrites:
 
 1. **Self-graded completion.** Agent claims done; nobody can verify. → Prevented by readiness tool.
 2. **Drift treadmill.** Base system evolves; new system's evidence rots; never converges. → Prevented by freeze doctrine and change-sync policy.
 3. **Hidden product changes.** Agent "improves" behavior the project depended on. → Prevented by contract/test matrix.
 4. **Irreversible-action mishaps.** Agent runs a production write on its own judgment. → Prevented by irreversible-action rule.
 5. **Lost context across sessions.** New session re-litigates settled decisions. → Prevented by ADRs, change-sync log, and slice catalog.
+6. **Completeness drift.** New system implements every surface a slice explicitly named and silently omits every surface no slice happened to enumerate. → Prevented by inventory-equivalence gates wired into the readiness tool.
 
-Skipping any of the three layers (agent config / project documents / readiness tool) reintroduces the failure mode that layer prevents.
+Skipping any of the three layers (agent config / project documents / readiness tool) reintroduces the failure modes those layers prevent.
 
 ## What "done" looks like
 
@@ -203,10 +237,11 @@ If any of the above is missing, the project is not done. The readiness tool will
 3. **Write `04_CONTRACT_AND_TEST_MATRIX.md`.** What "preserve behavior" means, surface by surface.
 4. **Write `05_CHANGE_SYNC_AND_POLICY.md`.** Including the freeze doctrine and AI guardrails.
 5. **Write `02_SLICE_CATALOG.md`.** Phase 0 and Phase 1 slices to start. Add more as phases approach.
-6. **Build the readiness tool.** Even with only the early phases defined. Emit JSON. Refuse anything not proven.
-7. **Write the root agent instructions file.** Constitution. Points at the above. States the hard rules.
-8. **Write `phases/PHASE_0_*.md`.** Executable brief for the first phase, with numerical floors and agent executor brief.
-9. **Execute.**
+6. **Write `06_INVENTORY_AND_EQUIVALENCE_GATES.md` and capture the old system's surface inventories.** For every surface the old system exposes — routes, operations, scheduled jobs, message handlers, entities, providers — write the inventory file path, the equivalence tool that will diff it against the new system, and the readiness blocker code. **Inventories captured without paired equivalence tools become decoration.** Build the equivalence tools as part of Phase 0, not later.
+7. **Build the readiness tool.** Even with only the early phases defined. Emit JSON. Refuse anything not proven. Consume every equivalence tool's output and surface `inventory_mismatch_missing` blockers from the first run.
+8. **Write the root agent instructions file.** Constitution. Points at the above. States the hard rules.
+9. **Write `phases/PHASE_0_*.md`.** Executable brief for the first phase, with numerical floors and agent executor brief.
+10. **Execute.**
 
 Steps 1–7 take a few days of focused work. They feel disproportionately heavy at the start. They become the load-bearing infrastructure by week three. Skipping any of them produces work that has to be redone under pressure later.
 

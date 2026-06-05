@@ -662,6 +662,72 @@ AI conversion agents must:
 - [explicit requirement]
 ```
 
+### `06_INVENTORY_AND_EQUIVALENCE_GATES.md`
+
+The completeness-gate document. For each surface the old system exposes, names the inventory file, the equivalence tool, the readiness blocker codes, and the retirement amendment process. Missing this document is how migrations silently ship incomplete.
+
+```markdown
+# Inventory and Equivalence Gates
+
+## Purpose
+
+For every surface the old system exposes, this document declares:
+- The inventory file (what the old system has).
+- The equivalence tool (the diff between old and new).
+- The readiness blocker codes the tool emits.
+- The retirement amendment process for surfaces explicitly out of scope.
+
+Inventories without paired equivalence tools are decoration. The readiness tool refuses to clear unless every inventory below has a current equivalence output.
+
+## Surface inventories
+
+| Surface | Old-system inventory | New-system inventory | Equivalence tool | Output artifact | Blocker code on mismatch |
+|---|---|---|---|---|---|
+| Routes | docs/.../route_inventory.json | (introspected from new system) | tools/check_route_parity | artifacts/.../route-parity.json | inventory_mismatch_missing |
+| Operations | docs/.../operation_inventory.json | ... | tools/check_operation_parity | artifacts/.../operation-parity.json | inventory_mismatch_missing |
+| Scheduled jobs | docs/.../job_inventory.json | ... | tools/check_job_parity | artifacts/.../job-parity.json | inventory_mismatch_missing |
+| Message handlers | ... | ... | ... | ... | ... |
+| Entities | ... | ... | ... | ... | ... |
+| Providers / external integrations | ... | ... | ... | ... | ... |
+
+Add a row for every surface category the project has. If a category doesn't apply, state that explicitly with a one-line reason rather than omitting it.
+
+## Equivalence tool contract
+
+Each equivalence tool must:
+
+- Read the old-system inventory file.
+- Read or introspect the new-system surface.
+- Emit a JSON output with `missing` (in old, not in new) and `extra` (in new, not in old) arrays.
+- Honor retirement amendments (entries in `missing` that have a matching amendment are recorded but not blocking).
+- Exit non-zero if anything in `missing` lacks an amendment.
+
+## Retirement amendments
+
+For surfaces in the old system that will not be ported, write a retirement amendment at `amendments/RETIREMENT_<surface>_<id>.md` with:
+
+- Surface identity (method+path, handler name, operation ID — whatever uniquely names it).
+- Consumer impact (who called this; what they should do instead).
+- Product owner (named person, not a team).
+- Approver (named person, not a team).
+- Date.
+- Replacement (if any), or explicit "no replacement; consumer migrated to X."
+
+The equivalence tool checks the amendments directory; missing surfaces with no matching amendment remain blocking.
+
+## Addition amendments (optional)
+
+For surfaces in the new system that did not exist in the old system, write an addition amendment with the same shape as a retirement amendment. This catches accidental scope expansion.
+
+## Freshness
+
+Equivalence outputs older than the freshness window declared by `05_CHANGE_SYNC_AND_POLICY.md` are stale. When the old system changes a surface, the equivalence diff must rerun in the same work item as the change.
+
+## Bootstrap order
+
+Inventories must be captured by end of Phase 0. Equivalence tools must exist by end of Phase 0. Inventories without paired equivalence tools by end of Phase 0 are themselves blockers — the readiness tool will refuse to clear.
+```
+
 ### `phases/PHASE_N_*.md`
 
 ```markdown

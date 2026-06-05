@@ -200,6 +200,18 @@ Detection: invariant names like "X enforces Y" where you can't immediately point
 
 Prevention: invariant inventory before test implementation. The inventory cites file:line for each invariant's enforcement. Invariants without a citation are flagged for human review before tests are written.
 
+### Completeness drift
+
+The new system implements every surface anyone explicitly named in a slice, and silently omits every surface no slice happened to enumerate. The phase reports all close. The contract matrix all passes. The readiness tool says green. Production breaks the first time a user tries a route the old system had and the new system doesn't.
+
+Detection: a diff between the old system's inventory of surfaces (routes, operations, scheduled jobs, message handlers, entities, providers) and the new system's actual exposed surface. Surfaces the diff finds in the old but not the new must either be implemented or explicitly retired with an amendment.
+
+Prevention: every inventory the project captures must be paired with an **equivalence tool** that compares it against the new system's actual surface. The pair runs as a gate the readiness tool consumes. Without the gate, the inventory is decoration — the project has the data to detect completeness drift but no machine check that flags it.
+
+This is the failure mode that catches projects with otherwise excellent discipline. Every gate the project shipped was internally consistent against its own scope; no gate scoped the comparison to "old system's surface vs new system's surface." The slices closed on what they declared; the aggregate gap accumulated silently. The cutover passed. The first production day surfaced 30+ missing routes the UI calls.
+
+For high-stakes work, see `HIGH_STAKES_PROJECT_PLAYBOOK.md` (the "three gate categories" section) and `READINESS_TOOL_SPEC.md` (the `inventory_mismatch_*` refusal codes).
+
 ### Package surface regression
 
 A refactor trims a package's `__init__.py` or `legacy.py` barrel. A private name that other code imported from the package surface gets dropped. Tests fail; production breaks.

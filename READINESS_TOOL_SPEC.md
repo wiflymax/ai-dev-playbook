@@ -57,6 +57,15 @@ The slice catalog (`02_SLICE_CATALOG.md`) and the change-sync/policy document (`
 - Which evidence files must be present.
 - Which slices are explicitly blocked vs. silently missing.
 
+### 4. Inventory equivalence outputs
+
+The inventory-and-equivalence document (`06_INVENTORY_AND_EQUIVALENCE_GATES.md`) declares, for each surface the old system exposes, an inventory file and an equivalence tool. The readiness tool consults both:
+
+- The inventory file (what the old system has, e.g. `route_inventory.json`).
+- The equivalence tool's output (the diff between old and new, with `missing` and `extra` lists).
+
+The tool refuses to clear unless every declared inventory has a current equivalence output and every entry in the `missing` list either has a matching slice in flight or a retirement amendment on file. See "Inventory-equivalence refusals" below.
+
 ## What the tool emits
 
 A single JSON document on stdout (or written to `--json-out <path>`) with this shape:
@@ -137,6 +146,9 @@ Recommended starter codes:
 | `gate_not_green` | A named gate in the contract/test matrix is not satisfied. |
 | `irreversible_action_unauthorized` | An evidence file describes an irreversible action without the required human-authorization markers. |
 | `slice_floor_unmet` | A slice claims complete but its closeout shows numerical floor not reached without a stop condition cited. |
+| `inventory_mismatch_missing` | The old system declares a surface (route, operation, scheduled job, entity, provider) that the new system does not expose, and no retirement amendment exists. |
+| `inventory_mismatch_extra` | The new system exposes a surface the old system never had, without an addition amendment naming why. |
+| `inventory_not_diffed` | An inventory file was captured but no equivalence diff against the target system has been performed (or recorded) for this gate cycle. |
 
 Each blocker should carry enough context (file path, gate name, subsystem ID) that an agent reading the JSON can take action without guessing.
 
@@ -179,6 +191,18 @@ For evidence with a declared schema:
 - Schema mismatches produce `evidence_invalid_schema` with the specific field that failed.
 
 Use a real schema validator. Don't approximate with string matching.
+
+### Inventory-equivalence refusals
+
+For every surface inventory the project declares (typically: routes, operations, scheduled jobs, message handlers, entities, providers):
+
+- The tool must consult the equivalence output that diffs the old-system inventory against the new-system surface.
+- A surface in the old inventory that is not in the new system and not on the retirement-amendment list produces `inventory_mismatch_missing`. The blocker must name the surface (method+path for a route, handler name for a job, etc.), the owning phase/slice that would implement it, and the path to the inventory file that declared it.
+- A surface in the new system that is not in the old inventory and not on the addition-amendment list produces `inventory_mismatch_extra`. Less common but worth catching — accidental new surfaces are how an agent quietly expands scope.
+- An inventory file that exists but has no recorded equivalence output produces `inventory_not_diffed`. The principle: **a captured inventory that no tool diffs is decoration, and decoration must not let the readiness tool clear.** Inventories without paired equivalence tools are themselves blockers.
+- Equivalence outputs older than the freshness window declared by the change-sync policy produce `evidence_stale`. When the old system changes a surface, the equivalence diff must rerun.
+
+The principle here matters: **the readiness tool's job for inventories is to gate completeness, not just correctness.** A new system can satisfy every named gate and still be silently incomplete if no tool compares it against what the old system actually had. The inventory-equivalence refusals close that gap.
 
 ## Example input
 

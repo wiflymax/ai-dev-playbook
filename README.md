@@ -50,6 +50,7 @@ The failure modes that collapse agent-driven codebases are predictable. The play
 | **Hallucination filling planning gaps** | Plans leave questions unanswered; agents fill them silently and sometimes wrongly | Multi-agent plan validation (described below) resolves ambiguity at the planning stage so the executor has nothing to fill in |
 | **Drift during long migrations** | The base system keeps evolving; the new system's evidence rots faster than it can be refreshed | Freeze doctrine pauses feature work on migrated surfaces; change-sync policy forces evidence refresh on every allowed change |
 | **Self-graded completion at the project level** | The agent declares the whole project ready when it isn't | The readiness script is the authority; it reads evidence files and refuses to return green when anything is missing |
+| **Completeness drift** | New system implements every surface a slice explicitly named and silently omits every surface no slice happened to enumerate. Cutover passes; production hits missing routes on day one | For every surface the old system exposes (routes, operations, jobs, entities, providers), an inventory file is captured and paired with an equivalence tool that diffs old vs new. The readiness script consumes the diff and refuses to clear on `inventory_mismatch_missing` unless a retirement amendment exists |
 
 Each mechanism in the table corresponds to a concrete artifact in this repo. The discipline doesn't prevent failure modes from existing — agents will still try to introduce duplication, still try to claim premature completion, still try to fill in gaps. The discipline makes those attempts visible and cheap to reject.
 
@@ -138,8 +139,8 @@ Skipping any one layer reintroduces the failure mode it prevents. See `HIGH_STAK
 | `PRINCIPLES.md` | Load-bearing principles, failure modes, day-zero setup | Standard |
 | `PLAN_AND_PROMPT_TEMPLATES.md` | Phase plans, agent briefings, ADRs, high-stakes document set skeletons | Standard + Enforcement |
 | `AGENT_INSTRUCTIONS_STARTER_PACK.md` | Templates for `AGENTS.md` / `CLAUDE.md` / per-directory rule files | Standard |
-| `HIGH_STAKES_PROJECT_PLAYBOOK.md` | The enforcement-grade pattern for parallel rewrites, migrations, multi-system integrations | Enforcement |
-| `READINESS_TOOL_SPEC.md` | Input/output contract and refusal rules for the readiness script | Enforcement |
+| `HIGH_STAKES_PROJECT_PLAYBOOK.md` | The enforcement-grade pattern for parallel rewrites, migrations, multi-system integrations — three gate categories (correctness/behavior/completeness), three-layer model, irreversible-action rule, freeze doctrine | Enforcement |
+| `READINESS_TOOL_SPEC.md` | Input/output contract and refusal rules for the readiness script, including inventory-equivalence refusals that catch silently-missing surfaces | Enforcement |
 
 Reading order: `PRINCIPLES.md` → `AGENT_INSTRUCTIONS_STARTER_PACK.md` → `PLAN_AND_PROMPT_TEMPLATES.md`. If the project is high-stakes, also `HIGH_STAKES_PROJECT_PLAYBOOK.md` → `READINESS_TOOL_SPEC.md` before writing code.
 
